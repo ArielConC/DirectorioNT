@@ -1,0 +1,6 @@
+pandas
+supabase
+pytesseract
+pillow
+fpdf
+pillow-heif
