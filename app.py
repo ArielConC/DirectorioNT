@@ -303,6 +303,7 @@ else:
                         try:
                             supabase.table('usuarios').insert({"usuario": n_user, "password": pwd_hash, "rol": n_rol, "puesto": n_puesto}).execute()
                             st.success(f"Usuario '{n_user}' creado.")
+                            st.rerun() 
                         except Exception as e:
                             st.error("Error en el registro.")
             
