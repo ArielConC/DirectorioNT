@@ -285,45 +285,73 @@ else:
                     else:
                         st.warning("No se detectaron datos legibles. Intenta tomando la foto más cerca.")
 
-    # --- PESTAÑA 3: PANEL ADMIN ---
+   # --- PESTAÑA 3: PANEL ADMIN Y GESTIÓN DE CATÁLOGOS ---
     if st.session_state['rol'] == 'Admin':
         with tabs[2]:
             st.header("⚙️ Panel de Administración")
             c_izq, c_der = st.columns(2)
             
             with c_izq:
-                st.subheader("👥 Accesos al Sistema")
-                with st.form("nuevo_usuario"):
+                st.subheader("👥 Registrar Nuevo Acceso")
+                # Agregamos clear_on_submit=True para evitar saltos en la interfaz y limpiar al guardar
+                with st.form("nuevo_usuario", clear_on_submit=True):
                     n_user = st.text_input("Nombre de Usuario")
                     n_pwd = st.text_input("Contraseña", type="password")
                     n_rol = st.selectbox("Nivel de Acceso", ["Usuario", "Admin"])
                     n_puesto = st.text_input("Puesto del Colaborador")
-                    if st.form_submit_button("Registrar Colaborador"):
-                        pwd_hash = hashlib.sha256(n_pwd.encode()).hexdigest()
-                        try:
-                            supabase.table('usuarios').insert({"usuario": n_user, "password": pwd_hash, "rol": n_rol, "puesto": n_puesto}).execute()
-                            st.success(f"Usuario '{n_user}' creado.")
-                            st.rerun() 
-                        except Exception as e:
-                            st.error("Error en el registro.")
+                    
+                    if st.form_submit_button("Crear Colaborador"):
+                        if n_user and n_pwd:
+                            pwd_hash = hashlib.sha256(n_pwd.encode()).hexdigest()
+                            try:
+                                supabase.table('usuarios').insert({"usuario": n_user, "password": pwd_hash, "rol": n_rol, "puesto": n_puesto}).execute()
+                                st.success(f"Usuario '{n_user}' creado.")
+                                st.rerun()
+                            except Exception as e:
+                                st.error("Error en el registro. Quizá el usuario ya existe.")
+                        else:
+                            st.warning("El usuario y la contraseña son obligatorios.")
             
             with c_der:
                 st.subheader("🏢 Estructura de Catálogos")
                 with st.expander("➕ Agregar Empresa"):
-                    with st.form("f_emp"):
+                    with st.form("f_emp", clear_on_submit=True):
                         e_nom = st.text_input("Nombre corporativo")
                         e_sec = st.text_input("Sector")
                         if st.form_submit_button("Registrar Empresa"):
                             if e_nom:
                                 supabase.table('empresas').insert({"nombre": e_nom, "sector": e_sec}).execute()
-                                st.success("Empresa añadida."); st.rerun()
+                                st.success("Empresa añadida.")
+                                st.rerun()
                 
                 with st.expander("➕ Agregar Ubicación"):
-                    with st.form("f_ubi"):
+                    with st.form("f_ubi", clear_on_submit=True):
                         u_tipo = st.selectbox("Tipo", ["Nacional", "Internacional"])
                         u_pais = st.text_input("País")
                         u_est = st.text_input("Estado / Región")
                         if st.form_submit_button("Registrar Ubicación"):
                             if u_pais and u_est:
                                 supabase.table('ubicaciones').insert({"tipo": u_tipo, "pais": u_pais, "estado": u_est}).execute()
-                                st.success("Ubicación añadida."); st.rerun()
+                                st.success("Ubicación añadida.")
+                                st.rerun()
+            
+            # --- NUEVA SECCIÓN: LISTA DE USUARIOS (SOLO ADMIN) ---
+            st.markdown("---")
+            st.subheader("📋 Directorio de Accesos al Sistema")
+            
+            # Descargamos los usuarios de Supabase
+            res_usuarios = supabase.table('usuarios').select('usuario, rol, puesto').execute()
+            if len(res_usuarios.data) > 0:
+                df_usuarios = pd.DataFrame(res_usuarios.data)
+                
+                # Enmascaramos la contraseña por seguridad profesional
+                df_usuarios['password'] = "•••••••• (Encriptada)" 
+                
+                # Reordenamos y renombramos las columnas para una mejor UI
+                df_usuarios = df_usuarios[['usuario', 'password', 'rol', 'puesto']]
+                df_usuarios.columns = ['Usuario', 'Contraseña', 'Nivel de Acceso', 'Puesto']
+                
+                # Mostramos la tabla adaptada al ancho de la pantalla
+                st.dataframe(df_usuarios, use_container_width=True, hide_index=True)
+            else:
+                st.info("No hay usuarios registrados.")
